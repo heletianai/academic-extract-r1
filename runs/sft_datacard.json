@@ -1,0 +1,14 @@
+{
+  "input": "/Users/hetian/sprint-30day/academic-extract-r1/data/processed/distilled.jsonl",
+  "seed": 42,
+  "valid_rows": 8849,
+  "unique": 8849,
+  "soft_skipped": 63,
+  "soft_ratio": 0.007,
+  "sota_disagree_ratio": 0.075,
+  "train": 8649,
+  "holdout": 200,
+  "review_shell": 50,
+  "grounding_flag_ratio": 0.124,
+  "benchmarks_nonempty_ratio": 0.261
+}

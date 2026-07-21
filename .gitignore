@@ -4,6 +4,10 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
-/runs/
 *.jsonl
 !tests/fixtures/*.jsonl
+/runs/*
+!/runs/*.md
+!/runs/*.json
+!/runs/*.jsonl
+!/runs/*.log

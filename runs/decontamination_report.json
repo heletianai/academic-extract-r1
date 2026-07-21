@@ -1,0 +1,20 @@
+{
+  "train": "data/processed/sft_train.jsonl",
+  "against": [
+    "data/processed/holdout.jsonl"
+  ],
+  "n_train": 8649,
+  "n_against": 200,
+  "ngram": 13,
+  "n_contaminated": 1,
+  "overlap_rate": 0.0001,
+  "pass_2pct_gate": true,
+  "hits": [
+    {
+      "train_id": "2508.08274",
+      "against_id": "2507.20924",
+      "n_shared_ngrams": 1,
+      "sample": "adjectives as human interpretable bottleneck concepts scbm leverages ..."
+    }
+  ]
+}
