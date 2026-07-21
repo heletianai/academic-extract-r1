@@ -18,6 +18,7 @@ TRL 原生签名（extract0 reward_wrapper 写法）：completions + kwargs 里�
 
 from __future__ import annotations
 
+import hashlib
 import json
 
 from src.eval.field_scores import f_field, score_fields
@@ -71,23 +72,28 @@ def has_duplicate_top_level_keys(json_str: str) -> bool:
 
 def compute_reward(completion_text: str, gold_extraction: dict,
                    action_penalty: float = 0.0) -> dict:
-    """单条 reward。返回明细 dict（五件套曲线与 hacking 观察线要逐分量落盘）。"""
+    """单条 reward。返回明细 dict（五件套曲线与 hacking 观察线要逐分量落盘）。
+
+    completion_hash：组内轨迹去重率观察线（手册§六.3）预埋——Stage B/C 直接对
+    组内 hash 集合算去重率，无需回头改 reward 签名。
+    """
+    _hash = hashlib.sha1((completion_text or "").encode("utf-8", "ignore")).hexdigest()[:12]
     json_str = extract_json_str(completion_text or "")
     if json_str is None:
-        return {"reward": GATE_PENALTY, "gate": "no_json", "alpha": None,
+        return {"reward": GATE_PENALTY, "gate": "no_json", "alpha": None, "completion_hash": _hash,
                 "f_field": None, "f_bench": None}
     if has_duplicate_top_level_keys(json_str):
-        return {"reward": GATE_PENALTY, "gate": "duplicate_keys", "alpha": None,
+        return {"reward": GATE_PENALTY, "gate": "duplicate_keys", "alpha": None, "completion_hash": _hash,
                 "f_field": None, "f_bench": None}
     try:
         obj = json.loads(json_str)
     except json.JSONDecodeError:
-        return {"reward": GATE_PENALTY, "gate": "parse_fail", "alpha": None,
+        return {"reward": GATE_PENALTY, "gate": "parse_fail", "alpha": None, "completion_hash": _hash,
                 "f_field": None, "f_bench": None}
 
     v = validate_extraction(obj)
     if v["status"] == INVALID:
-        return {"reward": GATE_PENALTY, "gate": "schema_invalid", "alpha": None,
+        return {"reward": GATE_PENALTY, "gate": "schema_invalid", "alpha": None, "completion_hash": _hash,
                 "f_field": None, "f_bench": None, "errors": v["errors"]}
 
     scores = score_fields(v["parsed"], gold_extraction)
@@ -95,7 +101,7 @@ def compute_reward(completion_text: str, gold_extraction: dict,
     fb = scores["benchmarks_soft"]
     r = v["alpha"] * (W_FIELD * ff + W_BENCH * fb) / (W_FIELD + W_BENCH)
     r += action_penalty  # Stage C 接入；单轮恒 0
-    return {"reward": float(r), "gate": None, "alpha": v["alpha"],
+    return {"reward": float(r), "gate": None, "alpha": v["alpha"], "completion_hash": _hash,
             "f_field": round(ff, 4), "f_bench": round(fb, 4),
             "soft_flags": v.get("soft_flags", []), "field_scores": scores}
 
