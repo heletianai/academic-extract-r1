@@ -1,0 +1,9 @@
+refs/
+data/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+runs/
+*.jsonl
+!tests/fixtures/*.jsonl
