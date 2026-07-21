@@ -43,7 +43,8 @@ TEMP_RETRY = 0.6   # INVALID 重试时升温换采样
 CONCURRENCY = 8
 MAX_API_RETRIES = 4
 
-# 价格快照 2026-07（¥/M token，标准时段；低谷约半价）——估算用，以账单为准
+# 价格快照 2026-07（¥/M token）——7.21 实测对账：真实账单≈本估算的 26%（19M tokens 账单 ¥5.85），
+# 快照偏高 ~4 倍。保守高估=安全上界（防超支），不下调；真实成本以平台账单为准
 PRICE = {"input_miss": 2.0, "input_hit": 0.5, "output": 8.0}
 
 

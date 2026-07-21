@@ -5,7 +5,7 @@
 - 配置：deepseek-chat(V3) temp0（INVALID 升温 0.6 重试一次）/ 并发 16 / 教师长 prompt 4-shot / 代码 commit 3a1d932
 - 数据：papers_pool 9000（numeric 50% 分层，arXiv id 前缀≥2507）→ ok 8916（含冒烟 50）/ rejected 121（全部 validator_invalid=rejection filter 留痕，0 条 api_failed）/ grounding flag 率 12.5%（by_category: bench_name 683/modality 593/bench_value 349/placeholder 230/open_source 111；blacklist 召回 4/4）
 - 切分：train 8648（13-gram 去污染剔 1，重叠率 0.01% 过 2% 闸）/ holdout 200 / 人工壳 50（sota_disagree∪grounding_flags 可疑优先）；SOFT 0.7% 丢弃（远低于 15% 复议线）；benchmarks 非空率 26.1%
-- 成本：**全程实测 ¥18.75 清零**（≈¥2.1/千条；高峰段 1047 条学费差价 ~¥1.5；⚠️"低谷约半价"假设证伪——实测约标准价，估算器 PRICE 快照下次按实测校准）
+- 成本：**实际账单 ¥5.85 全程**（平台用量页 7.22 对账：9,482 请求/19.01M tokens，≈¥0.65/千条）。⚠️勘误：跑批刚结束查 balance 显示 0.00 系并发预扣费瞬时假象，结算后余额 ¥12.93；昨晚"¥18.75 清零/低谷半价证伪"两结论作废。实际账单≈脚本标准价估算的 26%（PRICE 快照偏高 ~4 倍，与 memory 早前"便宜 4 倍"实测一致）——估算器当安全上界用，真实成本以账单为准
 - 用时：第二轮 7940 条 759s（10.5 条/s @并发 16）
 
 ## eval-api_fewshot-20260721
