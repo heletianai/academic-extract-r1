@@ -5,7 +5,7 @@ import json
 from src.data.filter_papers import has_numeric_signal, load_and_filter, stratified_sample
 
 
-def _row(id, cats="cs.CL cs.AI", created="2025-09-01", abstract=None, updated=""):
+def _row(id="2509.00001", cats="cs.CL cs.AI", created="2025-09-01", abstract=None, updated=""):
     return {
         "id": id, "created": created, "updated": updated,
         "title": f"Paper {id}",
@@ -36,7 +36,7 @@ class TestNumericSignal:
 
 class TestLoadAndFilter:
     def test_dedup_keeps_last(self, tmp_path):
-        rows = [_row("1", abstract="old " + "A" * 200), _row("1", abstract="new " + "A" * 200)]
+        rows = [_row(abstract="old " + "A" * 200), _row(abstract="new " + "A" * 200)]
         p = _write(tmp_path, rows)
         kept, stats = load_and_filter(p)
         assert stats["unique_ids"] == 1
@@ -44,22 +44,28 @@ class TestLoadAndFilter:
 
     def test_primary_category_only(self, tmp_path):
         rows = [
-            _row("1", cats="cs.CL cs.AI"),   # 主类命中
-            _row("2", cats="cs.AI cs.CL"),   # cs.CL 只是交叉 → 拒
-            _row("3", cats="cs.LG stat.ML"), # 主类命中
+            _row("2509.00001", cats="cs.CL cs.AI"),   # 主类命中
+            _row("2509.00002", cats="cs.AI cs.CL"),   # cs.CL 只是交叉 → 拒
+            _row("2509.00003", cats="cs.LG stat.ML"), # 主类命中
         ]
         kept, _ = load_and_filter(_write(tmp_path, rows))
-        assert {r["id"] for r in kept} == {"1", "3"}
+        assert {r["id"] for r in kept} == {"2509.00001", "2509.00003"}
 
-    def test_created_cutoff(self, tmp_path):
-        rows = [_row("1", created="2025-06-30"), _row("2", created="2025-07-01")]
+    def test_id_prefix_window(self, tmp_path):
+        # issues-log #002：时间窗按 id 前缀（v1 提交年月），created 不可信不参与筛选
+        rows = [
+            _row("2506.99999", created="2025-09-01"),  # 2025-06 提交（created 是 replace 日）→ 拒
+            _row("2507.00001", created="2018-01-01"),  # 2025-07 提交（created 脏值）→ 收
+            _row("1306.1870", created="2025-06-30"),   # 老论文最近 replace → 拒
+            _row("cs/0701001", created="2025-08-01"),  # 旧式 id → 拒
+        ]
         kept, _ = load_and_filter(_write(tmp_path, rows))
-        assert {r["id"] for r in kept} == {"2"}
+        assert {r["id"] for r in kept} == {"2507.00001"}
 
     def test_abstract_length_bounds(self, tmp_path):
-        rows = [_row("1", abstract="short"), _row("2", abstract="A" * 3500), _row("3")]
+        rows = [_row("2509.00001", abstract="short"), _row("2509.00002", abstract="A" * 3500), _row("2509.00003")]
         kept, _ = load_and_filter(_write(tmp_path, rows))
-        assert {r["id"] for r in kept} == {"3"}
+        assert {r["id"] for r in kept} == {"2509.00003"}
 
 
 class TestStratifiedSample:
