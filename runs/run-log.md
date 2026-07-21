@@ -14,3 +14,16 @@
 - 指标：overall **0.9753** [CI95 0.9636-0.9844] / 合法 JSON 率 99.5%（1 条 INVALID）/ benchmarks hard-F1 0.9313 [0.8946-0.9633] / benchmarks soft 0.9586 / task_type 0.985 / modalities 0.995 / method_keywords 0.9335
 - ⚠️ 口径声明（协议§一，报数必带）：教师同配置对蒸馏 GT 的重放＝**自一致性上界（"教师即天花板"的显式化），非独立能力数字**；与 1.0 的 2.5pp 缺口＝temp0 下 API 非确定性＝任务/评分器噪声地板参照。三列纪律：held-out 0.9753 / 人工核验子集 50 未填 / MOLE 未映射——独立数字待后两件闭环
 - 成本：¥0.41（标准估）
+
+## sft-smoke-20260721-195019（冒烟）
+- 阶段：Phase 2 开卡日 / SFT 冒烟（90s 关卡）
+- 环境：AutoDL 内蒙B区 183机 RTX 4090 24GB ¥2.08/时 / 驱动 560.35.03 / PyTorch 2.5.1+cu124 镜像（主机 CUDA≤12.6，12.8 镜像被拒后降级）/ unsloth 2026.7.4 / transformers 4.56.2 / trl 0.22.2 / Xformers 0.0.29.post1
+- 配置：Qwen3-4B-Instruct-2507（ModelScope 本地）/ LoRA r32 α64 / bs2×accum4 / lr 2e-4 / 50 条 20 步 / train_on_responses_only loss mask / non-thinking
+- 结果：**loss 1.18→0.36→0.24→0.14（20 步）**，29.8s（1.15s/step），可训参数 66M/4.09B=1.62%，padding-free 自动启用——全链路通，过闸
+- 事故：#007 torchao 版本冲突（已修）；tmux 无包改 nohup（手册备胎）
+
+## sft-full-20260721-195436（全量，进行中）
+- 配置：同冒烟，全量 8648 条 × 2 epochs = 2162 步
+- 启动：北京 19:54 nohup 挂后台，日志 runs/sft-full-20260721.log 实时 tee
+- 显存：8.4GB / 24GB；速率 1.2s/step，ETA ≈43 分钟
+- 状态：跑至 37%（808/2162）正常，loss 待收尾后记
