@@ -22,8 +22,23 @@
 - 结果：**loss 1.18→0.36→0.24→0.14（20 步）**，29.8s（1.15s/step），可训参数 66M/4.09B=1.62%，padding-free 自动启用——全链路通，过闸
 - 事故：#007 torchao 版本冲突（已修）；tmux 无包改 nohup（手册备胎）
 
-## sft-full-20260721-195436（全量，进行中）
-- 配置：同冒烟，全量 8648 条 × 2 epochs = 2162 步
-- 启动：北京 19:54 nohup 挂后台，日志 runs/sft-full-20260721.log 实时 tee
-- 显存：8.4GB / 24GB；速率 1.2s/step，ETA ≈43 分钟
-- 状态：跑至 37%（808/2162）正常，loss 待收尾后记
+## sft-full-20260721-195436（全量，已完成——收官补记 7.21 深夜）
+- 配置：同冒烟，全量 8648 条 × 2 epochs = 2162 步 / LoRA r32 / lr 2e-4 / seed 3407
+- 结果：**final_loss 0.1594**，train_seconds 2594.8（43.2 min，与 ETA 吻合）/ n_dropped_overlen 0
+- 产物：LoRA 272M 本地+云端双份（runs/gpu-artifacts/sft-lora-8648/ + 云端 outputs/sft/sft-20260721-195436/lora）
+
+## eval 三方对照 + scaling 五点（20260721，holdout 200，收官补记）
+- **base_fewshot 0.6713**（valid JSON 94%）/ **SFT 0.9010** [CI95 0.8893-0.9129]（valid 100%）/ **API few-shot 0.9753**（教师自证口径声明照旧）
+- SFT 分字段：claims_sota 0.99 / open_source 0.985 / modalities 0.968 / task_type 0.86 / benchmarks_hard 0.823 / method_keywords 0.715（最弱项）
+- scaling：500→0.8718 [0.8512-0.8908] / 1000→0.8871 / 1500→0.8861（平台）/ 4000→0.8945 / 8648→0.9010——边际递减但未饱和，8k 拍板被曲线背书
+- 泄漏排查：train/holdout 13-gram 重叠 0.01% 过 2% 闸；SFT(0.901)<API 天花板(0.975)，无"学生超教师"警报（手册§七）
+
+## grpo pre-run 校准（20260721 深夜，手册§十——执行会话#3 第 0 步，开跑前记）
+对 grpo_train.py ASSUMPTIONS A1-A6 逐条核 Stage A 实测：
+- **A1 ✅**：SFT valid_json_rate=1.0（200/200），gate 率 <10% 预期成立；冒烟闸 20% 维持
+- **A2 ⏳设计假设**：Stage A 全程 temp0 无多样性实测——正是冒烟四标准"组内去重率>50%"的验证对象，temp 1.0 起点不动
+- **A3 ✅**：per-sample 均分 std=0.0868、满分仅 8%、零分 0——分数连续分布非全同；API-SFT 有 7.4pp 提升空间；最弱两项 method_keywords 0.715 / benchmarks_hard 0.823 恰是 reward 高权重项（F_bench×3），区分度前提成立
+- **A4 ⏳无 A 阶段可核项**：beta=0.05 维持 extract0 参照，KL 曲线出来再调（数值参数化，改参零风险）
+- **A5 ✅**：thinking 块 0/200，2507 纯 non-thinking 实证
+- **A6 ✅**：SFT 输出长度 p99=725 字符≈242 token，max 786≈262 token——completion 512 有 ~2 倍余量（temp1.0 发散加长也够；超长截断→JSON 不闭合→gate 负分=自然惩罚）；lr 5e-6 / num_gen 8 维持参照起点
+- **结论：零修改开跑**（零修改也记"已审视"）。冒烟过闸四标准不变：5 步跑完 / gate_rate<20% / 组内去重率>50% / reward 非零方差
