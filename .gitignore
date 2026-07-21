@@ -1,9 +1,9 @@
-refs/
-data/
+/refs/
+/data/
 __pycache__/
 *.pyc
 .env
 .DS_Store
-runs/
+/runs/
 *.jsonl
 !tests/fixtures/*.jsonl
