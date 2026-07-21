@@ -76,7 +76,7 @@ class TestEvaluateEndToEnd:
             f.write(json.dumps({"id": "1", "raw_text": "junk " + json.dumps(EX())}) + "\n")
         r = evaluate(str(pred_p), str(gold_p))
         assert r["n"] == 3
-        assert abs(r["valid_json_rate"] - 2 / 3) < 1e-6
+        assert abs(r["valid_json_rate"] - 2 / 3) < 1e-3  # report 值经 round(4)
         assert r["fields"]["task_type"]["mean"] < 1.0  # 缺失那条拉低
         assert r["overall"]["ci95"][0] <= r["overall"]["mean"] <= r["overall"]["ci95"][1]
 
