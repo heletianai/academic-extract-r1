@@ -34,3 +34,9 @@
 - 现象：放量收官 commit 报 nothing to commit，runs/ 下 8 个新文件全部未被跟踪
 - 假设→验证：git status --ignored → runs/ 整目录命中 /runs/ 规则；git ls-files 确认 issues-log.md/smoke-review 自创建起从未入库，此前 commit message 提及它们＝失真（#005 同款第二例）
 - 结论：改 /runs/* + !/runs/*.{md,json,jsonl,log}（顶层小件放行；否定行置于全局 *.jsonl 之后防覆盖；子目录留给 checkpoint/trajectory 大件）。纪律升级：#005 只 spot-check 了出事目录——今后**每个新目录首次产出文件的 commit 后，git ls-files 扫该目录**
+
+## 2026-07-21 #007 torchao>=0.16 与镜像 torch 2.5.1 冲突（开卡日环境搭建）
+- 现象：pip 装完后 import unsloth 爆 AttributeError: module 'torch' has no attribute 'int1'
+- 假设→验证：torch.int1 是 2.6+ 新类型；requirements 的 torchao>=0.16 pin 来自 notebook（torch2.8 环境），在 4090 实例镜像（PyTorch 2.5.1/cu124，主机驱动 560 只支持≤12.6 所以没法用 2.8 镜像）下不兼容
+- 结论：16bit LoRA 不需要 torchao，直接卸载→unsloth 2026.7.4 导入 OK。requirements-train.txt 注记：torchao 仅 torch≥2.6 环境装。教训=分环境 pin：镜像 torch 版本决定周边件版本域，跨环境 pin 表要带条件
+- 环境快照：4090 24GB/驱动560.35.03/PyTorch2.5.1+cu124/py3.12/unsloth 2026.7.4/transformers 4.56.2/trl 0.22.2

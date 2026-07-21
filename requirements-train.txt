@@ -4,7 +4,7 @@
 transformers==4.56.2
 trl==0.22.2
 datasets==4.3.0
-torchao>=0.16.0
+torchao>=0.16.0  # 仅 torch>=2.6 环境；torch2.5.1 镜像必须跳过(#007: torch.int1 AttributeError)
 unsloth
 bitsandbytes
 xformers
