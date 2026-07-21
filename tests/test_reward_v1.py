@@ -103,3 +103,30 @@ class TestExtractJsonStr:
     def test_nested_and_string_braces(self):
         s = 'x {"a": {"b": "}"}, "c": 1} y'
         assert json.loads(extract_json_str(s)) == {"a": {"b": "}"}, "c": 1}
+
+
+class TestRedTeamFixes:
+    def test_parse_fail_gate_alive(self):
+        # P1：语法坏 JSON 必须记 parse_fail（原实现全被标 duplicate_keys）
+        r = compute_reward('ans {"a": 1,}', EX())
+        assert r["gate"] == "parse_fail" and r["reward"] == GATE_PENALTY
+
+    def test_last_parseable_object_wins(self):
+        # P2：推理文本中的花括号碎片不许吃掉真答案
+        text = 'Consider {"x": 1} as a draft... Final answer: ' + json.dumps(EX())
+        r = compute_reward(text, EX())
+        assert r["gate"] is None and abs(r["reward"] - 1.0) < 1e-9
+
+    def test_nan_value_soft_not_poison(self):
+        # 潜伏#1：NaN 进 value → SOFT（str 化）且 reward 有限
+        o = EX()
+        o["benchmarks"][0]["value"] = float("nan")
+        r = compute_reward(C(o), EX())
+        assert r["gate"] is None and r["alpha"] == 0.8
+        assert r["reward"] == r["reward"]  # not NaN
+
+    def test_bool_value_soft(self):
+        o = EX()
+        o["benchmarks"][0]["value"] = True
+        r = compute_reward(C(o), EX())
+        assert r["alpha"] == 0.8  # 不再被 cast 成 1.0 拿满分

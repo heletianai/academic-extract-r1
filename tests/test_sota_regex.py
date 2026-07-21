@@ -49,3 +49,18 @@ class TestNegativeAndMixed:
 
     def test_mixed_one_assertion_wins(self):
         assert R("comparable to SOTA on X, and achieves state-of-the-art on Y")
+
+
+class TestRedTeamFixes:
+    def test_negation_blocked(self):
+        assert not R("does not outperform all baselines")
+        assert not R("fails to reach the previous best")
+
+    def test_interjection_defeats_old_window(self):
+        assert not R("broadly comparable, in some settings, to the state-of-the-art")
+
+    def test_clause_boundary_preserves_assertion(self):
+        assert R("comparable to SOTA on X, and achieves state-of-the-art on Y")
+
+    def test_not_only_construction(self):
+        assert R("not only simpler, but also achieves state-of-the-art accuracy")

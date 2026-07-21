@@ -93,3 +93,19 @@ class TestEvaluateEndToEnd:
         pred_p.write_text(json.dumps({"id": "7", "extraction": EX()}) + "\n")
         r = evaluate(str(pred_p), str(gold_p))
         assert r["overall"]["mean"] == 1.0
+
+
+class TestRedTeamFixes:
+    def test_bad_gold_line_does_not_crash(self, tmp_path):
+        # P1：一条坏 gold（messages 尾部非 JSON / 缺 content）不许崩整个 eval
+        gold_p, pred_p = tmp_path / "g.jsonl", tmp_path / "p.jsonl"
+        rows = [
+            {"id": "1", "extraction": EX()},
+            {"id": "2", "messages": [{"role": "assistant", "content": "here you go"}]},
+            {"id": "3", "messages": [{"role": "assistant"}]},
+        ]
+        gold_p.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+        pred_p.write_text(json.dumps({"id": "1", "extraction": EX()}) + "\n")
+        r = evaluate(str(pred_p), str(gold_p))
+        assert r["n"] == 1 and r["n_bad_gold"] == 2
+        assert r["overall"]["mean"] == 1.0

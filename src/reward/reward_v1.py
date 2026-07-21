@@ -29,11 +29,8 @@ W_FIELD = 1.0
 W_BENCH = 3.0         # R1-RE w_tri=3
 
 
-def extract_json_str(text: str) -> str | None:
-    """extract0 括号平衡提取（in-string / escape 感知），返回原始 JSON 串。"""
-    start = text.find("{")
-    if start == -1:
-        return None
+def _balanced_end(text: str, start: int) -> int | None:
+    """从 start 处的 '{' 起找平衡闭合位置（in-string / escape 感知），未闭合返回 None。"""
     depth, in_str, esc = 0, False, False
     for i, ch in enumerate(text[start:], start):
         if esc:
@@ -51,8 +48,37 @@ def extract_json_str(text: str) -> str | None:
             elif ch == "}":
                 depth -= 1
                 if depth == 0:
-                    return text[start:i + 1]
+                    return i
     return None
+
+
+def extract_json_str(text: str) -> str | None:
+    """取**最后一个可解析**的 top-level 平衡对象（红队 P2 修复）。
+
+    extract0 原版取第一个——但本项目模型可能在答案前输出含花括号的推理文本
+    （Stage C 多轮尤甚），取第一个会抓到推理碎片、真答案被假门控惩罚，
+    等于系统性惩罚 chain-of-thought。答案在末尾是任务格式约定，取最后可解析者。
+    全部不可解析时返回最后一个候选（让上游记 parse_fail 而非 no_json，诊断更准）。
+    """
+    candidates = []
+    i = 0
+    while True:
+        start = text.find("{", i)
+        if start == -1:
+            break
+        end = _balanced_end(text, start)
+        if end is None:
+            i = start + 1  # 该起点未闭合，内层可能仍有平衡对象
+            continue
+        candidates.append(text[start:end + 1])
+        i = end + 1
+    for c in reversed(candidates):
+        try:
+            json.loads(c)
+            return c
+        except json.JSONDecodeError:
+            continue
+    return candidates[-1] if candidates else None
 
 
 def has_duplicate_top_level_keys(json_str: str) -> bool:
@@ -82,13 +108,16 @@ def compute_reward(completion_text: str, gold_extraction: dict,
     if json_str is None:
         return {"reward": GATE_PENALTY, "gate": "no_json", "alpha": None, "completion_hash": _hash,
                 "f_field": None, "f_bench": None}
-    if has_duplicate_top_level_keys(json_str):
-        return {"reward": GATE_PENALTY, "gate": "duplicate_keys", "alpha": None, "completion_hash": _hash,
-                "f_field": None, "f_bench": None}
+    # 门控顺序（红队 P1 修复）：先 parse 后查重复键——原顺序下 has_duplicate 对
+    # JSONDecodeError 保守拒，语法错全被标成 duplicate_keys，parse_fail 成死代码，
+    # hacking 观察线的 per-gate 分布会误诊。重复键检测必须用原始串（loads 会静默合并）。
     try:
         obj = json.loads(json_str)
     except json.JSONDecodeError:
         return {"reward": GATE_PENALTY, "gate": "parse_fail", "alpha": None, "completion_hash": _hash,
+                "f_field": None, "f_bench": None}
+    if has_duplicate_top_level_keys(json_str):
+        return {"reward": GATE_PENALTY, "gate": "duplicate_keys", "alpha": None, "completion_hash": _hash,
                 "f_field": None, "f_bench": None}
 
     v = validate_extraction(obj)

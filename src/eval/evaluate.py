@@ -20,6 +20,7 @@ import random
 from pathlib import Path
 
 from src.eval.field_scores import score_fields
+from src.reward.reward_v1 import extract_json_str
 from src.schema_model import INVALID, validate_extraction
 
 REPORT_FIELDS = (
@@ -29,32 +30,33 @@ REPORT_FIELDS = (
 
 
 def _extract_json(text: str):
-    """extract0 extract_json_from_text 的括号平衡写法（brace matching, in-string 感知）。"""
-    start = text.find("{")
-    if start == -1:
+    """复用 reward 同一提取器（最后一个可解析对象），消除双实现漂移。"""
+    s = extract_json_str(text or "")
+    if s is None:
         return None
-    depth, in_str, esc = 0, False, False
-    for i, ch in enumerate(text[start:], start):
-        if esc:
-            esc = False
-            continue
-        if ch == "\\" and in_str:
-            esc = True
-            continue
-        if ch == '"':
-            in_str = not in_str
-            continue
-        if not in_str:
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    try:
-                        return json.loads(text[start:i + 1])
-                    except json.JSONDecodeError:
-                        return None
-    return None
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        return None
+
+
+def _load_gold_extraction(g: dict):
+    """gold 双格式安全加载（红队 P1 修复：一条坏 gold 行不许崩整个 eval）。
+
+    额外过 validator（红队潜伏#2：gold 里字符串 bool 会被 score_fields 的
+    bool() 误翻——validator 的 lax cast 统一成真 bool）。失败返回 None，
+    上游计入 n_bad_gold 并跳过该条，显式报告不静默。
+    """
+    try:
+        ex = g.get("extraction")
+        if ex is None and g.get("messages"):
+            ex = json.loads(g["messages"][-1].get("content", ""))
+    except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError):
+        return None
+    if ex is None:
+        return None
+    v = validate_extraction(ex)
+    return v["parsed"] if v["status"] != INVALID else None
 
 
 def load_jsonl(path: str | Path) -> dict[str, dict]:
@@ -82,8 +84,12 @@ def evaluate(pred_path: str, gold_path: str) -> dict:
 
     per_paper: list[dict] = []
     n_invalid = 0
+    n_bad_gold = 0
     for pid, g in golds.items():
-        gold_ex = g.get("extraction") or (g.get("messages") and json.loads(g["messages"][-1]["content"]))
+        gold_ex = _load_gold_extraction(g)
+        if gold_ex is None:
+            n_bad_gold += 1
+            continue  # gold 数据问题不算被测系统头上，单列计数显式报告
         p = preds.get(pid)
         if p is None:
             n_invalid += 1
@@ -107,6 +113,7 @@ def evaluate(pred_path: str, gold_path: str) -> dict:
         "n": n,
         "valid_json_rate": round(sum(r["valid"] for r in per_paper) / max(1, n), 4),
         "n_invalid_or_missing": n_invalid,
+        "n_bad_gold": n_bad_gold,
         "fields": {},
     }
     overall_per_paper = []

@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 
 # ---------- 规范化 ----------
@@ -63,16 +64,22 @@ _NUM_RE = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
 
 
 def parse_value(v) -> float | None:
-    """把 85.3 / "85.3" / "85.3%" / "0.853" 解析为 float；失败返回 None。"""
+    """把 85.3 / "85.3" / "85.3%" / "0.853" 解析为 float；失败/非有限值返回 None。
+
+    NaN/Inf 显式拒（红队潜伏#1 防御化：原先靠 max(0.0, nan) 的参数顺序偶然防住，
+    一旦有人改写成 max(s, 0.0) 就会 NaN 污染整个 GRPO advantage 归一化 batch）。
+    """
     if isinstance(v, bool):  # bool 是 int 子类，先拦
         return None
     if isinstance(v, (int, float)):
-        return float(v)
+        f = float(v)
+        return f if math.isfinite(f) else None
     if isinstance(v, str):
         m = _NUM_RE.search(v.replace(",", ""))
         if m:
             try:
-                return float(m.group())
+                f = float(m.group())
+                return f if math.isfinite(f) else None
             except ValueError:
                 return None
     return None
