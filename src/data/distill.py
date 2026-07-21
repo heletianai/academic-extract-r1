@@ -25,6 +25,7 @@ from pathlib import Path
 
 from openai import AsyncOpenAI, APIError, APITimeoutError, RateLimitError
 
+from src.data.grounding import grounding_check
 from src.data.prompts import build_messages
 from src.data.sota_regex import claims_sota_by_regex
 from src.schema_model import INVALID, validate_extraction
@@ -131,6 +132,10 @@ async def process_paper(client: AsyncOpenAI, sem: asyncio.Semaphore, paper: dict
         regex_sota = claims_sota_by_regex(f"{paper['title']}. {paper['abstract']}")
         row["sota_regex"] = regex_sota
         row["sota_disagree"] = bool(v["parsed"]["claims_sota"]) != regex_sota
+        # grounding 自动核对（issues-log #004）：value/modality 编造粗筛，进 review 优先队列
+        row["grounding_flags"] = grounding_check(v["parsed"], paper["title"], paper["abstract"])
+        if row["grounding_flags"]:
+            counters["flagged"] += 1
     async with lock:
         if v["status"] == INVALID:
             row["errors"] = v.get("errors", [])
@@ -145,7 +150,8 @@ async def process_paper(client: AsyncOpenAI, sem: asyncio.Semaphore, paper: dict
             counters["ok"] += 1
         done = counters["ok"] + counters["rejected"]
         if done % 10 == 0:
-            print(f"[{done}/{counters['total']}] ok={counters['ok']} rej={counters['rejected']} {usage.report()}", flush=True)
+            print(f"[{done}/{counters['total']}] ok={counters['ok']} rej={counters['rejected']} "
+                  f"flagged={counters['flagged']} {usage.report()}", flush=True)
 
 
 async def amain(args) -> None:
@@ -183,7 +189,7 @@ async def amain(args) -> None:
     sem = asyncio.Semaphore(args.concurrency)
     usage = Usage()
     lock = asyncio.Lock()
-    counters = {"ok": 0, "rejected": 0, "total": len(todo)}
+    counters = {"ok": 0, "rejected": 0, "flagged": 0, "total": len(todo)}
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
@@ -192,7 +198,8 @@ async def amain(args) -> None:
             process_paper(client, sem, p, usage, out_f, rej_f, lock, counters) for p in todo
         ])
     dt = time.time() - t0
-    print(f"[done] ok={counters['ok']} rejected={counters['rejected']} in {dt:.0f}s | {usage.report()}", flush=True)
+    print(f"[done] ok={counters['ok']} rejected={counters['rejected']} "
+          f"grounding_flagged={counters['flagged']} in {dt:.0f}s | {usage.report()}", flush=True)
 
 
 def main() -> None:

@@ -101,17 +101,18 @@ def main() -> None:
         paths[name] = str(p)
 
     # 人工核验空壳（审计 B5：held-out GT 100% 是蒸馏的，独立验证/教师基线都以此为前置）
-    # 优先抽 sota_disagree 样本（正则与教师不一致=难样本浓度最高），不足补随机
+    # 优先队列 = sota_disagree ∪ grounding_flags 非空（#004：教师可疑输出浓度最高），不足补随机
     review_n = min(50, len(holdout))
-    disagree = [r for r in holdout if r.get("sota_disagree")]
-    rest = [r for r in holdout if not r.get("sota_disagree")]
-    review_set = (disagree + rest)[:review_n]
+    suspect = [r for r in holdout if r.get("sota_disagree") or r.get("grounding_flags")]
+    rest = [r for r in holdout if not (r.get("sota_disagree") or r.get("grounding_flags"))]
+    review_set = (suspect + rest)[:review_n]
     with open(OUT_DIR / "holdout_for_review.jsonl", "w", encoding="utf-8") as f:
         for r in review_set:
             f.write(json.dumps({
                 "id": r["id"], "title": r["title"], "abstract": r["abstract"],
                 "teacher_extraction": r["extraction"],
                 "sota_disagree": r.get("sota_disagree", False),
+                "grounding_flags": r.get("grounding_flags", []),
                 "human_extraction": None,  # 人工填此字段后即成"真·黄金 held-out 子集"
             }, ensure_ascii=False) + "\n")
 
@@ -126,6 +127,9 @@ def main() -> None:
         ),
         "train": len(train), "holdout": len(holdout),
         "review_shell": review_n,
+        "grounding_flag_ratio": round(
+            sum(1 for r in uniq if r.get("grounding_flags")) / max(1, len(uniq)), 3
+        ),
         "benchmarks_nonempty_ratio": round(
             sum(1 for r in uniq if r["extraction"]["benchmarks"]) / max(1, len(uniq)), 3
         ),
