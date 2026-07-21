@@ -29,3 +29,8 @@
 - 现象：改完 prompts.py 后 git 报 nothing to commit
 - 假设→验证：git show HEAD:src/data/prompts.py → "exists on disk, but not in HEAD"——gitignore 无前导斜杠的 `data/` 递归匹配任意层级同名目录，数据管线 7 个源码文件从未入库；此前 commit message 声称提交系失真
 - 结论：.gitignore 目录规则全部改带前导 /（/data/ 只匹配根）；补提交入库。教训：①gitignore 目录模式一律带前导斜杠 ②commit 后 spot-check git ls-files ③"nothing to commit"类小异常必追根因
+
+## 2026-07-21 #006 【P1-repo】gitignore '/runs/' 整目录忽略，日志体系从未入库（#005 续集）
+- 现象：放量收官 commit 报 nothing to commit，runs/ 下 8 个新文件全部未被跟踪
+- 假设→验证：git status --ignored → runs/ 整目录命中 /runs/ 规则；git ls-files 确认 issues-log.md/smoke-review 自创建起从未入库，此前 commit message 提及它们＝失真（#005 同款第二例）
+- 结论：改 /runs/* + !/runs/*.{md,json,jsonl,log}（顶层小件放行；否定行置于全局 *.jsonl 之后防覆盖；子目录留给 checkpoint/trajectory 大件）。纪律升级：#005 只 spot-check 了出事目录——今后**每个新目录首次产出文件的 commit 后，git ls-files 扫该目录**
