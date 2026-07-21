@@ -1,0 +1,4 @@
+# 本地开发依赖（Phase 0，均已装）。训练栈 requirements 按 Unsloth notebook pin 另立。
+pydantic>=2.0
+openai>=1.0
+pytest>=8.0

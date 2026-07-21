@@ -1,8 +1,12 @@
-# Schema 六字段判定规则 Checklist（待过手冻结）
+# Schema 六字段判定规则 Checklist
 
 > 底稿 = 立项卡 Schema 终版（7.4，零设计决策）。本文件展开成蒸馏/抽检/reward 三用的判定规则。
-> 用户过手通过后此文件状态改为 FROZEN，之后任何修改 = 重大方案变更（须 Fable 会话裁决）。
-> 状态：**DRAFT — 待用户 20 分钟过手**
+> 状态：**FROZEN（2026-07-21）** — 用户委托按推荐案拍板（"你来做，继续"），7 项全按推荐案。
+> 冻结时 Claude 代审补三处硬化（防标签噪声，未改变任何已定语义）：
+> 1. **全字段判定仅基于给定文本片段，禁用教师模型的外部知识**（否则教师"知道"某论文开源→标 true→标签噪声；此条进蒸馏 system prompt）
+> 2. claims_sota 白名单落成正则（大小写/连字符变体归一）：`sota | state[- ]of[- ]the[- ]art | outperforms? +all | surpass(es|ing)? +all | previous best`；**排除子句**：白名单词仅作为比较基准出现（comparable to / close to / matches / approaching + SOTA）→ false（达成断言才 true）
+> 3. task_type=multimodal 消歧：指**任务本身**是多模态理解/生成（VQA/图文生成）；VLM 做纯分类任务 → classification（任务优先于模型架构）
+> 之后任何修改 = 重大方案变更（须 Fable 会话裁决）。
 
 ## 〇、你只需要拍板的 7 件事（20 分钟的全部内容）
 
