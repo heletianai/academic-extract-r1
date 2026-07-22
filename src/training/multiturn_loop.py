@@ -69,6 +69,7 @@ class RolloutResult:
     completion_mask: torch.Tensor     # [B, T] 1=模型生成(算loss) 0=注入/pad
     completion_texts: list[str]       # 完整多轮文本（给 reward/日志）
     stats: list[TrajStats]
+    lengths: torch.Tensor             # [B] 各轨迹真实长度（attention 语义重建依据）
 
 
 class MultiTurnRollout:
@@ -184,7 +185,8 @@ class MultiTurnRollout:
                 ids_t[i, :n] = torch.tensor(comp_ids[i], dtype=torch.long)
                 mask_t[i, :n] = torch.tensor(comp_mask[i], dtype=torch.long)
         texts = [self.tok.decode(c, skip_special_tokens=False) for c in comp_ids]
-        return RolloutResult(ids_t.to(device), mask_t.to(device), texts, stats)
+        lengths = torch.tensor([len(c) for c in comp_ids], dtype=torch.long)
+        return RolloutResult(ids_t.to(device), mask_t.to(device), texts, stats, lengths.to(device))
 
     # ---------- 生成子步（active 子集，左 pad batch） ----------
     def _generate(self, ctx: list[list[int]], act_idx: list[int]) -> list[str]:
