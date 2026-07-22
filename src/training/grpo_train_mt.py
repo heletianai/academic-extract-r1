@@ -25,7 +25,7 @@ from pathlib import Path
 MAX_SEQ_LENGTH = 2560   # prompt(~700 多轮协议) + completion(1024) + 检索注入余量
 SEED = 3407
 
-MT_SYSTEM_PROMPT = """Extract paper metadata as a JSON object with exactly these fields: task_type (classification|generation|retrieval|reasoning|multimodal|agent|other), modalities (list: text|image|audio|video|code), benchmarks (list of {name, metric, value}), open_source (bool), claims_sota (bool), method_keywords (3-5 short phrases), one_line_summary (string).
+MT_PROTOCOL_SUFFIX = """
 
 You may use a search tool to verify uncertain fields (especially benchmarks and claims_sota) against related papers:
 - To search: <search>your query</search> — you will receive related paper abstracts in <information>...</information>.
@@ -43,8 +43,10 @@ def build_mt_rows(path: str, max_prompts: int = 0) -> list[dict]:
             r = json.loads(line)
             m = r["messages"]
             rows.append({
+                # schema 段逐字复用 SFT system 原文（#012：截断输出抄 schema 漏字段
+                # → gate 100%；复用原文=与权重内化口径恒一致），只追加协议后缀
                 "prompt": [
-                    {"role": "system", "content": MT_SYSTEM_PROMPT},
+                    {"role": "system", "content": m[0]["content"] + MT_PROTOCOL_SUFFIX},
                     m[1],                                  # user: 摘要原文
                 ],
                 "gold_extraction": m[2]["content"],

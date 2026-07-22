@@ -130,10 +130,18 @@ class MultiTurnGRPOTrainer(GRPOTrainer):
             input_ids_full = torch.cat([prompt_ids, completion_ids], dim=1)
             attn_full = torch.cat([prompt_mask, completion_mask], dim=1)
             unwrapped = self.accelerator.unwrap_model(self.model)
+            # 分块算（原版 L1330 同款）：整 batch 一次 forward 的 logits 张量
+            # 32×1024×151k×4B≈19GB 必 OOM——per_device_batch 大小分块
+            chunk = self.args.per_device_train_batch_size
+            parts = []
             with torch.no_grad(), unwrapped.disable_adapter():
-                ref_per_token_logps, _ = self._get_per_token_logps_and_entropies(
-                    self.model, input_ids_full, attn_full, T, compute_entropy=False,
-                )
+                for s0 in range(0, input_ids_full.size(0), chunk):
+                    part, _ = self._get_per_token_logps_and_entropies(
+                        self.model, input_ids_full[s0:s0 + chunk],
+                        attn_full[s0:s0 + chunk], T, compute_entropy=False,
+                    )
+                    parts.append(part)
+            ref_per_token_logps = torch.cat(parts, dim=0)
 
         # --- 五件套 metrics + 多轮明细 jsonl（监控三线 + 六标准数据源） ---
         self._metrics[mode]["reward"].append(rewards_t.mean().item())

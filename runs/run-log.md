@@ -75,3 +75,15 @@
 - **diff 归因（钉死）**：GRPO 实质改写 143/200 条（72%）输出，但净胜仅 7（赢 32/输 25/平 86），赢输主战场同为 method_keywords（24 vs 20）=蒸馏 GT 噪声最大的主观字段——**训练真实有效（md5+72% 改动），撞到的是 reward 信号区分度天花板**：validator+F1 能保结构（gate 0%）不能裁"哪个关键词更对"
 - 判读：单轮 GRPO 收官。增量空间判定在信息侧（多轮检索）而非对齐侧——Stage C 的实证论据，比"涨 5pp"更硬的假设检验叙事
 - 成本：v2 run+评测 ≈¥5.6；今日累计 ≈¥14（含 #010 学费 ¥5.9）
+
+## grpomt-smoke v1-v4（多轮冒烟四连，20260722 下午）
+- v1/v2 OOM 18.57GiB：精简版丢了 TRL 原版 ref logps 分块（32×2560 全量 forward logits ≈19GB）→ 修复=per_device_batch 分块循环；batch 4×accum8 定档
+- v3 跑通但 gate 100%（schema_invalid 27/32）：#012 MT prompt 从截断输出抄 schema 漏 limitation_mentioned → 修复=schema 段逐字复用数据内 SFT system 原文+协议后缀
+- v4 过闸：schema_invalid=0 / gate 31% 全部为 no_json=未收针轨迹（answered_rate 0.63-0.78 互补）——**行为型 gate=训练目标非管线 bug**；reward 强区分度（答 +0.9 vs 未答 -1.5）=多轮给了单轮没有的梯度信号（Stage B 归因兑现）；search_rate 0.44-0.69/mean_turns ~3/去重 0.88-1.0/第五标准 PASS；97s/it
+- 六标准裁决：过闸（gate 闸的单轮语义在多轮下重释：结构型=0 才是闸，行为型计入训练信号）
+
+## grpomt-full-20260722（多轮正式 run，进行中——今晚主训练）
+- 配置：--no-unsloth 原生 TRL / batch 4×accum8 / 1000 prompts=250 步 / temp 1.2 / max_turns 3 / topk 3 / penalty 0.2/0.5/0.1 / beta 0.05 / lr 5e-6 / seed 3407 / 检索库 9000 池 BM25
+- 启动：16:44 北京，93.7s/it，ETA≈6.5h（约 23:15 跑完）→ 链尾假 shutdown 已改转发真关机，跑完自动关机
+- 显存 18.9G 稳；明细 outputs/grpo_mt/grpomt-*/reward_detail.jsonl（answered_rate 走势=本 run 核心观察线：penalty 应把未收针率压下去）
+- ⚠️ 余额账：挂载时余额≈¥8 只够 ~3.8h（20:40 耗尽），跑满 250 步需再充 ≥¥10（用户已知，建议 ¥20 含明天评测+缓冲）

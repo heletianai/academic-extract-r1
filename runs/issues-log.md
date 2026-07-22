@@ -60,3 +60,8 @@
 - 现象：#010 修复 1 后权重仍空转；unsloth/models/rl.py 存在 for_inference/for_training 切换与 prepare_for_training_mode 装饰器（L203/222/399-444）——unsloth GRPO 支持围绕 fast_inference=True(vLLM colocate) 官方场景设计，transformers 慢路 rollout 的训练态恢复失守（机制假设，行号留档未逐行验证——修复优先于考古）
 - 验证：vLLM 线：0.6.6 装成且 torch 2.5.1 未动，但 ValueError: Qwen3ForCausalLM not supported（0.6.6 系 2024.12 版早于 Qwen3，设计期 pin 误配；升 0.8.x 需连升 torch=4.29 版本地狱复刻，30min 闸内不可行→放弃）。原生 TRL+PEFT 线：AutoModel+PeftModel.from_pretrained(is_trainable=True)+enable_input_require_grads+gradient_checkpointing，绝不 import unsloth（会全局 patch trl）→ 冒烟第五标准 ✅（md5 4039f4df→88cfa5af）+四标准全绿+reward 序列开始漂移（权重逐步更新痕迹）
 - 结论：**Stage B 定案原生 TRL 慢路**（16.7s/it 反快于 unsloth 慢路 18.2——其优化在未走通路径上本无效）。unsloth 保留给 SFT（实证有效）；Stage C 若需 vLLM 则版本仗在镜像保护下重打（升 torch 全链）。PEFT 加载纪律：is_trainable=True 必须显式（PEFT 默认推理态，与 #010 同族坑）
+
+## 2026-07-22 #012 多轮冒烟 gate 100%——MT prompt 从截断输出抄 schema 漏字段
+- 现象：多轮冒烟机制指标全活（search_rate 0.5/answered 0.85/mean_turns 2.6/第五标准 PASS）但 gate_rate 100%（schema_invalid 27/32 量级）
+- 假设→验证：GPU 取样看 answer 肉眼完全合法→本地零 GPU 复现→reward 明细 errors 钉死：limitation_mentioned: missing——gold 8 字段，MT_SYSTEM_PROMPT 只写 7（schema 说明系从 head -c 400 的截断输出抄写，limitation_mentioned 在截断点外）；模型忠实照 prompt 输出 7 字段
+- 结论：修复=MT prompt 的 schema 段逐字复用数据内 SFT system 原文（与权重内化口径恒一致、数据变自动跟），协议段做后缀追加。教训：**关键配置（schema/接口/协议）禁止从截断输出重建，必须读原文**——与"索引行≠内容，命中必 Read 全文"同族纪律的代码版
