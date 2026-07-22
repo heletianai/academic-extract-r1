@@ -42,3 +42,18 @@
 - **A5 ✅**：thinking 块 0/200，2507 纯 non-thinking 实证
 - **A6 ✅**：SFT 输出长度 p99=725 字符≈242 token，max 786≈262 token——completion 512 有 ~2 倍余量（temp1.0 发散加长也够；超长截断→JSON 不闭合→gate 负分=自然惩罚）；lr 5e-6 / num_gen 8 维持参照起点
 - **结论：零修改开跑**（零修改也记"已审视"）。冒烟过闸四标准不变：5 步跑完 / gate_rate<20% / 组内去重率>50% / reward 非零方差
+
+## grpo-smoke-20260722（冒烟三连：崩→t1.0→t1.2）
+- 阶段：Stage B / GRPO 冒烟（32 prompts × 5 步）
+- 首跑 90 秒关卡抓崩：#008 TRL 0.22 要求 reward callable 带 __name__（RewardLogger 实例缺）→ 一行修复
+- t1.0（081446）：91.1s 跑完，gate_rate 全 0，reward 方差在（0.635-0.996），但组内去重率 0.688→0.281 尾部俯冲（#009 高置信 prompt 全对全同→advantage=0 白耗）
+- t1.2（082027）：去重率 0.938→0.781 全程>50% 线，gate 仍全 0，reward 方差在——四标准全绿，过闸
+- 决策：正式 run 采 temp 1.2（A2 校准预案"塌缩则升温"框架内，非新决策）
+
+## grpo-full-20260722（正式 run，进行中）
+- 配置：起点 SFT LoRA（sft-20260721-195436）/ temp 1.2 / lr 5e-6 / beta 0.05 / num_gen 8 / batch 8×accum4 / 2000 prompts × 1 epoch = 500 步 / save_steps 100 / seed 3407 / transformers 慢路
+- vLLM 仗推迟：慢路实测 ~19s/it 已达经济闸，且实例无镜像保护（昨晚 GPU 被抢没存成）——不动 working 环境；vllm==0.6.6 包已预下载 /root/vllm-pkgs 待镜像后再打
+- 启动：7.22 08:26 北京，nohup 链尾 shutdown（跑完/训崩皆自动关机，防空转）；RUN_LAUNCHED 已 touch，watchdog 解除
+- 起跑关卡：显存 17.4/24G ✅ 速率 17.6-24.2s/it，ETA ≈2h40m ≈ ¥5.6（余额 ¥25 大幅盈余）
+- 备注：generation_config 被 Qwen3 默认覆盖 top_p=0.8（冒烟同条件跑的，无新变量）；明细 outputs/grpo/grpo-20260722-08*/reward_detail.jsonl 每 20 call flush
+- 产物回收：跑完自动关机，产物留盘——下次**无卡模式开机**拉回（0.1 元/时，不抢卡）

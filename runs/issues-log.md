@@ -40,3 +40,13 @@
 - 假设→验证：torch.int1 是 2.6+ 新类型；requirements 的 torchao>=0.16 pin 来自 notebook（torch2.8 环境），在 4090 实例镜像（PyTorch 2.5.1/cu124，主机驱动 560 只支持≤12.6 所以没法用 2.8 镜像）下不兼容
 - 结论：16bit LoRA 不需要 torchao，直接卸载→unsloth 2026.7.4 导入 OK。requirements-train.txt 注记：torchao 仅 torch≥2.6 环境装。教训=分环境 pin：镜像 torch 版本决定周边件版本域，跨环境 pin 表要带条件
 - 环境快照：4090 24GB/驱动560.35.03/PyTorch2.5.1+cu124/py3.12/unsloth 2026.7.4/transformers 4.56.2/trl 0.22.2
+
+## 2026-07-22 #008 TRL 0.22 GRPOTrainer 要求 reward callable 带 __name__（GRPO 冒烟首崩）
+- 现象：冒烟 90 秒关卡抓崩：AttributeError: 'RewardLogger' object has no attribute '__name__'（grpo_trainer.py:301 注册 reward_func_names）
+- 假设→验证：TRL 取 reward_funcs[i].__name__ 当日志名——函数有、类实例无；本地 153 单测未实例化真 GRPOTrainer（需 GPU）故未暴露
+- 结论：RewardLogger.__init__ 加 self.__name__ = "reward_v1" 一行修复，二次冒烟通过。教训：trainer 集成层的 API 契约（TRL 对 reward callable 的隐式要求）单测覆盖不到，只能真环境冒烟抓——90 秒关卡纪律再次兑现（4.29 立规，今日第 3 次抓真崩）
+## 2026-07-22 #009 冒烟组内去重率尾部俯冲（0.688→0.281，均值 0.55 压线）
+- 现象：temp1.0 冒烟 5 步 gate 全 0、reward_mean 冲 0.99+，但 group_dedup_mean 逐 call 下滑，末 call 0.281
+- 假设：非权重漂移（lr5e-6×5 步动不了权重）——是 prompt 难度分层：高置信 prompt 上 temp1.0 采样 8 条全收敛到同一正确 JSON（抽取任务答案唯一，SFT 后模型高置信）→ 全对全同组 advantage=0，正式 run 中这类组白耗算力（手册§六.3"同质化=advantage 失效"预警线命中，但方向是塌向正确而非 hacking：reward 高+gate 0 佐证）
+- 验证：temp 1.2 二次冒烟对照（A2 校准预案"塌缩则升温"），观察去重率回升幅度与 gate 是否仍 0
+- 结论：t1.2 冒烟去重率 0.938→0.781（均值 0.86 vs t1.0 的 0.55），gate 仍全 0——升温对症无副作用，正式 run 采 t1.2。留观：正式 run 后段去重率走势（reward_detail 每 20 call 一行）

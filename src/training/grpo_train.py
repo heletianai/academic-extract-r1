@@ -41,6 +41,7 @@ class RewardLogger:
     """
 
     def __init__(self, out_path: Path, num_generations: int, flush_every: int = 20):
+        self.__name__ = "reward_v1"  # TRL 0.22 注册 reward_funcs 时取 .__name__，callable 实例须自带
         self.out = out_path
         self.G = num_generations
         self.flush_every = flush_every
