@@ -104,3 +104,12 @@
 - 启动:~17:12 北京(PID 15134),90 秒关卡过(加载/数据/索引/循环全绿);nohup 链尾 /usr/local/sbin/shutdown 真关机
 - ETA:250 步 × ~95-100s/it ≈ 6.6-6.9h → **00:00-00:15 跑完自动关机**;余额 ~20:40 耗尽,用户 20:30 前充值≥¥20 则无断点
 - 核心观察线:search/answered 双线是否维持冒烟尾段水平(0.8+/0.9+);字段熵 hacking 线;明细 outputs/grpo_mt/grpomt-<ts>/reward_detail.jsonl
+
+## grpomt-full-v2-0722(✅ 完成 23:00)+ 双评测收官(mt_grpo/mt_sft)——Stage C 终局
+- **训练**:250 步零事故跑满(15:55 v1 塌缩杀→17:05 v2 挂载→23:00 完),final_loss 0.0299;行为线全程健康:search 0.41→1.0/answered 0.78→1.0/gate 0.31→0/reward −0.14→0.90;六标准终检 PASS(md5 445072ac ≠ SFT 4039f4df)
+- **eval mt_grpo(holdout 200,temp0 贪心,watcher 自动链)**:overall **0.8932 [0.8747-0.9092]**/valid 99%;行为:answered 1.000/search 1.000/mean_searches 恰 1.00(每条恰好一搜+必收针=penalty 定价的精确收敛)
+- **eval mt_sft(未训 SFT 同协议分母,¥1.5 加跑)**:overall **0.7789 [0.7389-0.8134]**/valid 93.5%;行为:answered 0.91/search 0.80/invalid 1.03 次每条(未训模型协议动作错误频出)
+- **🔥判读重写(mt_sft 分母改写终判)**:多轮协议本身成本 **−12.2pp**(0.901→0.779:动作错误+不作答+格式崩);多轮 GRPO 净增益 **+11.4pp**(0.779→0.893,CI 完全分离=全项目 RL 阶段唯一显著增量);最终 agent 形态距单轮上限仅 −0.8pp(n.s.)。三段论仍立(benchmarks 0.825 vs 0.823 平=检索信息增量≈0;GT 噪声=分数天花板),但 RL 的作用从"无效"修正为"把 agent 化的协议成本几乎全部吃回"——每一 pp 有归处:−12.2(协议)+11.4(GRPO)−0.8(残差 n.s.)
+- **六方终表**:base 0.6713 / SFT 0.9010 / +单轮 GRPO 0.9044 / SFT+多轮协议未训 0.7789 / **+多轮 agentic GRPO 0.8932** / API 上界 0.9753
+- 产物:runs/gpu-artifacts/mt-grpo-0722/ 全量双份(LoRA 272M/双评测/三 run 明细/塌缩曲线);机器已关机;**镜像欠账待存(关机态,控制台)**
+- 成本:今日 Stage C 全程 ≈¥19(v1 学费 1.2+冒烟 1.2+v2 训练 14+双评测 2.5);项目 GPU 总账 ≈¥35
