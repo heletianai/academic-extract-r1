@@ -200,13 +200,16 @@ class MultiTurnRollout:
             attn[r, L - len(s):] = 1
         input_ids = input_ids.to(self.model.device)
         attn = attn.to(self.model.device)
-        out = self.model.generate(
+        gen_kwargs: dict = dict(
             input_ids=input_ids,
             attention_mask=attn,
             max_new_tokens=self.max_new_per_turn,
-            do_sample=True,
-            temperature=self.temperature,
             pad_token_id=pad,
         )
+        if self.temperature > 0:
+            gen_kwargs.update(do_sample=True, temperature=self.temperature)
+        else:  # temp0 = 贪心（评测口径，与四方 temp0 对齐；HF 不接受 temperature=0）
+            gen_kwargs["do_sample"] = False
+        out = self.model.generate(**gen_kwargs)
         new_tokens = out[:, L:]
         return self.tok.batch_decode(new_tokens, skip_special_tokens=True)
