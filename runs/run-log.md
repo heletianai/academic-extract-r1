@@ -68,3 +68,10 @@
 - 配置：--no-unsloth / temp 1.2 / lr 5e-6 / beta 0.05 / num_gen 8 / 2000 prompts=500 步 / save_steps 100 / seed 3407
 - 启动：7.22 11:57 北京，nohup 无 shutdown（用户在场今日不关机）；显存 15.2/24G；17.2s/it ETA≈2h20m≈¥4.9
 - 预期判读入口：五件套+第五标准终检（跑完 lora md5≠SFT）+ holdout 200 评测进五方对照
+
+## grpo-full-native-20260722（正式 run v2，✅ 完成 14:32）
+- 结果：500 步 2h35m，final_loss 同量级；**第五标准终检 PASS**（lora md5 ff98cc7c ≠ SFT 4039f4df）；五件套全程零事故（gate≈0/去重 0.80-0.81/熵平稳/reward 尾段真实上抬 0.943→0.951）
+- **eval（holdout 200，自动链 14:46 完成）**：overall **0.9044 [0.8923-0.9166]** vs SFT 0.9010 [0.8893-0.9129] = **+0.34pp，CI 重叠不显著**；valid JSON 100%；分字段 task_type +1.5pp / method_keywords +0.45pp / claims_sota -0.5pp / 其余 ±0.2pp 内
+- **diff 归因（钉死）**：GRPO 实质改写 143/200 条（72%）输出，但净胜仅 7（赢 32/输 25/平 86），赢输主战场同为 method_keywords（24 vs 20）=蒸馏 GT 噪声最大的主观字段——**训练真实有效（md5+72% 改动），撞到的是 reward 信号区分度天花板**：validator+F1 能保结构（gate 0%）不能裁"哪个关键词更对"
+- 判读：单轮 GRPO 收官。增量空间判定在信息侧（多轮检索）而非对齐侧——Stage C 的实证论据，比"涨 5pp"更硬的假设检验叙事
+- 成本：v2 run+评测 ≈¥5.6；今日累计 ≈¥14（含 #010 学费 ¥5.9）
