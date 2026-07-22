@@ -65,3 +65,8 @@
 - 现象：多轮冒烟机制指标全活（search_rate 0.5/answered 0.85/mean_turns 2.6/第五标准 PASS）但 gate_rate 100%（schema_invalid 27/32 量级）
 - 假设→验证：GPU 取样看 answer 肉眼完全合法→本地零 GPU 复现→reward 明细 errors 钉死：limitation_mentioned: missing——gold 8 字段，MT_SYSTEM_PROMPT 只写 7（schema 说明系从 head -c 400 的截断输出抄写，limitation_mentioned 在截断点外）；模型忠实照 prompt 输出 7 字段
 - 结论：修复=MT prompt 的 schema 段逐字复用数据内 SFT system 原文（与权重内化口径恒一致、数据变自动跟），协议段做后缀追加。教训：**关键配置（schema/接口/协议）禁止从截断输出重建，必须读原文**——与"索引行≠内容，命中必 Read 全文"同族纪律的代码版
+
+## 2026-07-22 #013 多轮正式 run 行为塌缩(search avoidance)——penalty 配比失衡
+- 现象：正式 run(penalty 0.2/0.5/0.1)warmup 一结束(step 7,lr 到满)6 步内 search_rate 0.5→0.03、answered_rate→1.0、组内 reward_std 1.0→0.03、entropy 0.20→0.06、reward 稳收 0.65 附近="全员零检索直答"稳态；聚合明细同步佐证(gate 0.22→0,no_json 归零=无人检索自然无人超时)
+- 假设→验证：直答期望=F1(0.85-0.9)−0.2(零检索罚)≈0.65 无风险；检索轨迹背"未收针=gate −1.0−0.5 不作答罚=−1.5"下行风险→组内对比直答 advantage 恒正,GRPO 快速淘汰检索=Search-R1++ answer avoidance 的镜像(search avoidance)。方差归零+熵塌=梯度信号已死,剩 232 步(¥12/5.5h)为空烧→step ~25 止损杀(损失 ¥1.2/35min),曲线存档 grpomt-full-0722-collapsed-013.log。诚实注脚：杀前末 3 call search 回升 0.22-0.41(疑似 β·KL 往 SFT 先验拉回的对抗效应),持续性未观察即截断
+- 结论：penalty 数值消融(预案框架内)：no_search 0.2→0.8(直答封顶 F1−0.8≈0.15 必亏)/no_answer 0.5→0.3(检索下行 −1.5→−1.3)；冒烟扩展至 20 步——**5 步冒烟对行为塌缩是盲区**(塌缩在 step 7+,四连冒烟全未见)。教训：①行为型 reward 的冒烟窗口必须覆盖 lr 满血后 ≥10 步 ②action penalty 是天平不是开关,两侧罚值之差=对行为的定价,失衡即塌向 riskless 臂 ③RL 空转判定升级：方差归零+熵塌=行为空转(权重在动但学习信号已死),与 #010 权重空转同族——第五标准(md5)抓不到这型,曲线三线(std/熵/行为率)是唯一预警

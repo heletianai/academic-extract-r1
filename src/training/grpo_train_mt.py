@@ -80,6 +80,7 @@ def main() -> None:
     ap.add_argument("--penalty-no-answer", type=float, default=0.5)
     ap.add_argument("--penalty-invalid", type=float, default=0.1)
     ap.add_argument("--max-steps", type=int, default=-1)
+    ap.add_argument("--save-steps", type=int, default=100)  # 余额断训风险大时调小保 checkpoint
     ap.add_argument("--smoke", action="store_true", help="16 prompts + 5 步冒烟")
     args = ap.parse_args()
 
@@ -135,7 +136,7 @@ def main() -> None:
         max_steps=args.max_steps,
         num_train_epochs=1,
         logging_steps=1,
-        save_steps=100,
+        save_steps=args.save_steps,
         save_strategy="no" if args.smoke else "steps",
         optim="adamw_8bit",
         seed=SEED,

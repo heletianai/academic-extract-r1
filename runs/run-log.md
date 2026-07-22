@@ -82,8 +82,25 @@
 - v4 过闸：schema_invalid=0 / gate 31% 全部为 no_json=未收针轨迹（answered_rate 0.63-0.78 互补）——**行为型 gate=训练目标非管线 bug**；reward 强区分度（答 +0.9 vs 未答 -1.5）=多轮给了单轮没有的梯度信号（Stage B 归因兑现）；search_rate 0.44-0.69/mean_turns ~3/去重 0.88-1.0/第五标准 PASS；97s/it
 - 六标准裁决：过闸（gate 闸的单轮语义在多轮下重释：结构型=0 才是闸，行为型计入训练信号）
 
-## grpomt-full-20260722（多轮正式 run，进行中——今晚主训练）
+## grpomt-full-20260722（❌ 作废 #013：step 7 起行为塌缩 search avoidance，step ~25 止损杀）
 - 配置：--no-unsloth 原生 TRL / batch 4×accum8 / 1000 prompts=250 步 / temp 1.2 / max_turns 3 / topk 3 / penalty 0.2/0.5/0.1 / beta 0.05 / lr 5e-6 / seed 3407 / 检索库 9000 池 BM25
-- 启动：16:44 北京，93.7s/it，ETA≈6.5h（约 23:15 跑完）→ 链尾假 shutdown 已改转发真关机，跑完自动关机
-- 显存 18.9G 稳；明细 outputs/grpo_mt/grpomt-*/reward_detail.jsonl（answered_rate 走势=本 run 核心观察线：penalty 应把未收针率压下去）
-- ⚠️ 余额账：挂载时余额≈¥8 只够 ~3.8h（20:40 耗尽），跑满 250 步需再充 ≥¥10（用户已知，建议 ¥20 含明天评测+缓冲）
+- 启动实况：15:55:35（run-log 先前记 16:44 系笔误）；74s/it 均值
+- 塌缩曲线（#013 素材）：step1-6 warmup 期 search 0.38-0.50/answered 0.72-0.78/std≈1.0 → step7（lr 满）拐点 → step11-18 稳态 search 0.03-0.125/answered 1.0/std 0.03-0.32/entropy 0.05-0.08。归因=penalty 天平失衡：直答 F1−0.2≈0.65 无风险 vs 检索背 −1.5 未收针风险 → 组内直答恒赢。杀前末 3 call search 回升 0.22-0.41（β·KL 拉回效应，持续性未观察）
+- 处置：日志存档 runs/grpomt-full-0722-collapsed-013.log；outputs/grpo_mt/grpomt-20260722-155535/（28 call 明细）留档；成本 ¥1.2 学费换 #013 三教训（冒烟窗口/penalty 天平/行为空转判定）
+
+## grpomt-smoke-pen08-0722（penalty 消融扩展冒烟，20 步）
+- 配置：同正式 run 唯二改动 --penalty-no-search 0.8 / --penalty-no-answer 0.3；--max-steps 20（覆盖 warmup 后拐点窗口，5 步冒烟对行为塌缩是盲区 #013）
+- 启动：16:55；~100s/it（比塌缩 run 慢 26s=轨迹变长，检索行为存活的间接信号）
+- 过闸标准：20 步跑完 / warmup 后(step7+) search_rate ≥0.3 且 answered_rate ≥0.7 双线存活 / std 不归零 / 无崩。过闸 → 挂正式 250 步（全量，用户回充值续跑）
+
+## grpomt-smoke-pen08-0722 过闸判读(补记,run_id=grpomt-20260722-163133)
+- 结果:20 步 2017.5s(~101s/it)跑完;**双线存活且同升**:search_rate 0.41→尾段 0.75-0.84(定价翻转生效,模型在学检索)/answered_rate 0.78→0.84-0.97/gate(no_json)0.31→0.03-0.09(在学收针)/reward −0.14→0.63 爬升=梯度活/去重 0.84-1.0/字段熵 0.3-2.5 波动无单调塌(call17 单点 0.345 系 batch 方差,call18 回 1.94)
+- **第五标准 PASS**:lora md5 b7f6fc38 ≠ SFT 4039f4df
+- 与 #013 同刻度对照:旧稳态(search 0.03/ans 1.0/std 归零)vs 新尾段(search 0.84 升/ans 0.97/组内活跃)——**penalty 数值消融的一手行为对照,reward 设计决定 agent 行为的实证素材**
+- 留观:search 0.84 是否打卡式检索(搜而不用)→ 明天评测 diff 裁决;行为线本身已达训练目标
+
+## grpomt-full-v2-0722(多轮正式 run v2,进行中——penalty 消融版)
+- 配置:同 v1 唯三改动 --penalty-no-search 0.8 / --penalty-no-answer 0.3 / --save-steps 50(余额断训保底:ckpt-50 @~18:35、ckpt-100 @~19:55 均在余额窗口内)
+- 启动:~17:12 北京(PID 15134),90 秒关卡过(加载/数据/索引/循环全绿);nohup 链尾 /usr/local/sbin/shutdown 真关机
+- ETA:250 步 × ~95-100s/it ≈ 6.6-6.9h → **00:00-00:15 跑完自动关机**;余额 ~20:40 耗尽,用户 20:30 前充值≥¥20 则无断点
+- 核心观察线:search/answered 双线是否维持冒烟尾段水平(0.8+/0.9+);字段熵 hacking 线;明细 outputs/grpo_mt/grpomt-<ts>/reward_detail.jsonl
