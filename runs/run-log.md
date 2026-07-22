@@ -50,10 +50,21 @@
 - t1.2（082027）：去重率 0.938→0.781 全程>50% 线，gate 仍全 0，reward 方差在——四标准全绿，过闸
 - 决策：正式 run 采 temp 1.2（A2 校准预案"塌缩则升温"框架内，非新决策）
 
-## grpo-full-20260722（正式 run，进行中）
+## grpo-full-20260722（❌ 作废 #010：500 步权重空转，产物已改名 *-invalid-010）
 - 配置：起点 SFT LoRA（sft-20260721-195436）/ temp 1.2 / lr 5e-6 / beta 0.05 / num_gen 8 / batch 8×accum4 / 2000 prompts × 1 epoch = 500 步 / save_steps 100 / seed 3407 / transformers 慢路
 - vLLM 仗推迟：慢路实测 ~19s/it 已达经济闸，且实例无镜像保护（昨晚 GPU 被抢没存成）——不动 working 环境；vllm==0.6.6 包已预下载 /root/vllm-pkgs 待镜像后再打
 - 启动：7.22 08:26 北京，nohup 链尾 shutdown（跑完/训崩皆自动关机，防空转）；RUN_LAUNCHED 已 touch，watchdog 解除
 - 起跑关卡：显存 17.4/24G ✅ 速率 17.6-24.2s/it，ETA ≈2h40m ≈ ¥5.6（余额 ¥25 大幅盈余）
 - 备注：generation_config 被 Qwen3 默认覆盖 top_p=0.8（冒烟同条件跑的，无新变量）；明细 outputs/grpo/grpo-20260722-08*/reward_detail.jsonl 每 20 call flush
 - 产物回收：跑完自动关机，产物留盘——下次**无卡模式开机**拉回（0.1 元/时，不抢卡）
+- 作废详情：unsloth from_pretrained(LoRA 目录)=推理态冻结，optimizer 全程未写参数（全 checkpoint md5=SFT）；KL 0.8-1.35 系"SFT vs base 固定距离"假信号；2.8h/¥5.9 学费换 #010 三教训+第五标准立规
+
+## grpo-smoke-native-20260722-115238（原生 TRL 冒烟，#011 修复验证）
+- 配置：--no-unsloth（AutoModel+PeftModel is_trainable=True+enable_input_require_grads+gradient_checkpointing）/ temp 1.2 / 其余同参
+- 结果：**第五标准 ✅ md5 4039f4df→88cfa5af（权重真更新）**+四标准全绿（gate 0/去重 0.63-1.0/reward 方差在/5 步 83.4s=16.7s/it 反快于 unsloth 慢路）+reward 序列相对前两轮冒烟开始漂移（步间更新痕迹）
+- 环境注记：vllm 0.6.6 已装但不用（无 Qwen3 支持，#011）；torch 2.5.1 未动；unsloth 保留给 SFT 线
+
+## grpo-full-native-20260722（正式 run v2，进行中）
+- 配置：--no-unsloth / temp 1.2 / lr 5e-6 / beta 0.05 / num_gen 8 / 2000 prompts=500 步 / save_steps 100 / seed 3407
+- 启动：7.22 11:57 北京，nohup 无 shutdown（用户在场今日不关机）；显存 15.2/24G；17.2s/it ETA≈2h20m≈¥4.9
+- 预期判读入口：五件套+第五标准终检（跑完 lora md5≠SFT）+ holdout 200 评测进五方对照

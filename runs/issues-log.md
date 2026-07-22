@@ -50,3 +50,13 @@
 - 假设：非权重漂移（lr5e-6×5 步动不了权重）——是 prompt 难度分层：高置信 prompt 上 temp1.0 采样 8 条全收敛到同一正确 JSON（抽取任务答案唯一，SFT 后模型高置信）→ 全对全同组 advantage=0，正式 run 中这类组白耗算力（手册§六.3"同质化=advantage 失效"预警线命中，但方向是塌向正确而非 hacking：reward 高+gate 0 佐证）
 - 验证：temp 1.2 二次冒烟对照（A2 校准预案"塌缩则升温"），观察去重率回升幅度与 gate 是否仍 0
 - 结论：t1.2 冒烟去重率 0.938→0.781（均值 0.86 vs t1.0 的 0.55），gate 仍全 0——升温对症无副作用，正式 run 采 t1.2。留观：正式 run 后段去重率走势（reward_detail 每 20 call 一行）
+
+## 2026-07-22 #010 【P0】GRPO 500 步权重空转——unsloth 加载 LoRA 目录=推理态冻结
+- 现象：GRPO 评测 overall 0.901 与 SFT 每字段每 CI 完全一致→查实 200/200 条预测逐字相同、最终 lora 与全部 checkpoint(100-500) adapter md5 均=SFT 逐位拷贝；但训练日志 KL 恒 0.8-1.35 波动
+- 假设→验证：KL 非零但无增长趋势=TRL PEFT 模式 ref=禁用 adapter 的 base，KL 量的是"SFT 相对 base 的固定距离"非训练偏移；loss 有值仅证前向可算。md5 全程不变=optimizer 从未写入参数（任何非零更新必变浮点位）。根因=from_pretrained(LoRA 目录) 加载的 adapter 为推理态，非官方 GRPO notebook 轨道（官方=基座+get_peft_model）
+- 修复 1（不够）：基座+get_peft_model+set_peft_model_state_dict 灌 SFT 权重（lora_B L1 0→146628 灌入成功）——第五标准仍 ❌，md5 仍不变，且 reward 五行与 t1.2 冒烟逐字重放=权重仍未更新
+- 结论：加载侧修复不充分，空转根源在 unsloth 对 GRPOTrainer 的 patch 层（见 #011）。**教训三条：①冒烟四标准缺"权重在动"维度——第五标准（N 步后 adapter md5≠起点）自此为 RL 类训练必检项 ②评测数字与基线完全一致=第一优先怀疑"同一模型被测两次" ③KL 非零≠在训练（PEFT ref=base 时 KL 起点即非零）**
+## 2026-07-22 #011 unsloth GRPO 慢路态切换失守 + vLLM 0.6.6 无 Qwen3 → 原生 TRL 定案
+- 现象：#010 修复 1 后权重仍空转；unsloth/models/rl.py 存在 for_inference/for_training 切换与 prepare_for_training_mode 装饰器（L203/222/399-444）——unsloth GRPO 支持围绕 fast_inference=True(vLLM colocate) 官方场景设计，transformers 慢路 rollout 的训练态恢复失守（机制假设，行号留档未逐行验证——修复优先于考古）
+- 验证：vLLM 线：0.6.6 装成且 torch 2.5.1 未动，但 ValueError: Qwen3ForCausalLM not supported（0.6.6 系 2024.12 版早于 Qwen3，设计期 pin 误配；升 0.8.x 需连升 torch=4.29 版本地狱复刻，30min 闸内不可行→放弃）。原生 TRL+PEFT 线：AutoModel+PeftModel.from_pretrained(is_trainable=True)+enable_input_require_grads+gradient_checkpointing，绝不 import unsloth（会全局 patch trl）→ 冒烟第五标准 ✅（md5 4039f4df→88cfa5af）+四标准全绿+reward 序列开始漂移（权重逐步更新痕迹）
+- 结论：**Stage B 定案原生 TRL 慢路**（16.7s/it 反快于 unsloth 慢路 18.2——其优化在未走通路径上本无效）。unsloth 保留给 SFT（实证有效）；Stage C 若需 vLLM 则版本仗在镜像保护下重打（升 torch 全链）。PEFT 加载纪律：is_trainable=True 必须显式（PEFT 默认推理态，与 #010 同族坑）
