@@ -113,6 +113,7 @@ python -m src.training.grpo_train_mt --no-unsloth   # 多轮 agentic GRPO：250 
 python -m src.eval.gen_predictions      # API / few-shot 侧
 python -m src.eval.gen_predictions_mt   # 多轮贪心（3.5s/条）
 python -m src.eval.evaluate             # bootstrap 95% CI
+python docs/figures/make_figures.py     # 四张曲线图一键复现
 ```
 
 每次 run 的完整配置与结果在 [runs/run-log.md](runs/run-log.md)（每 run 一条，run 结束 5 分钟内记录）；trajectory JSONL 全程落盘，seed 固定（3407），重放实测前 4 步逐位同值。
